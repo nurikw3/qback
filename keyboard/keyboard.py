@@ -25,3 +25,7 @@ class ChagataiKeyboard:
     def suggest_full(self, text, top_k=5):
         context, prefix = self._parse(text)
         return self.model.predict(context, prefix, top_k)
+
+    def suggest_phonetic(self, text, max_edits=1, top_k=5):
+        context, prefix = self._parse(text)
+        return self.model.predict_phonetic(context, prefix, max_edits, top_k)

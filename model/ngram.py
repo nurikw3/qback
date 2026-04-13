@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
 from model.trie import Trie
+from model.phonetic import ChagataiPhonetic
 from typing import NamedTuple
 import math
 from data.preprocess import normalize_token
@@ -54,6 +55,7 @@ class NgramModel:
             self.kn_bigram_types[left] = len(rights)
 
         self._trie = Trie().build_from_vocab(self.vocab)
+        self._phonetic = ChagataiPhonetic().build_index(self.vocab)
 
         self._kn_total = sum(self.kn_continuation.values()) or 1
 
@@ -106,6 +108,48 @@ class NgramModel:
         discounted = max(four_count.get(word, 0) - d, 0) / total
         lam = (d * n_types) / total
         return discounted + lam * self._kn_trigram(ctx[-2:], word, d)
+
+    def predict_phonetic(
+        self,
+        context: list[str],
+        word: str,
+        max_edits: int = 1,
+        top_k: int = 5,
+    ) -> list[Suggestion]:
+        """Predict using phonetic matching."""
+        if not self._phonetic or not word:
+            return []
+
+        matches = self._phonetic.find_similar_phonetic(word, max_edits)
+        if not matches:
+            return []
+
+        ctx_norm = tuple(normalize_token(w) for w in context)
+        candidates = [m.word for m in matches]
+
+        scores: list[tuple[str, float, str]] = []
+        for w in candidates:
+            if len(ctx_norm) >= 3:
+                p = self._kn_fourgram(ctx_norm[-3:], w)
+            elif len(ctx_norm) == 2:
+                p = self._kn_trigram(ctx_norm[-2:], w)
+            elif len(ctx_norm) == 1:
+                p = self._kn_bigram(ctx_norm[-1], w)
+            else:
+                p = self._kn_unigram(w)
+            scores.append((w, p, "phonetic"))
+
+        scores.sort(key=lambda x: -x[1])
+        vals = [p for _, p, _ in scores]
+        max_v = max(vals) if vals else 0
+        exp_v = [math.exp(v - max_v) for v in vals]
+        total = sum(exp_v) or 1
+        softmax = [e / total for e in exp_v]
+
+        return [
+            Suggestion(word=w, score=round(sm, 4), source=src)
+            for (w, _, src), sm in zip(scores, softmax)
+        ][:top_k]
 
     def predict(
         self,
