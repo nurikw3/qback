@@ -25,3 +25,7 @@ class ChagataiKeyboard:
     def suggest_full(self, text, top_k=5):
         context, prefix = self._parse(text)
         return self.model.predict(context, prefix, top_k)
+
+    def suggest_fuzzy(self, text, max_dist=2, top_k=5):
+        context, prefix = self._parse(text)
+        return self.model.predict_fuzzy(context, prefix, max_dist, top_k)
