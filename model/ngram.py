@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from model.trie import Trie
 from typing import NamedTuple
 import math
 from data.preprocess import normalize_token
@@ -23,6 +24,7 @@ class NgramModel:
         self.kn_bigram_types: Counter[str] = Counter()
 
         self._cache: dict[tuple, list[Suggestion]] = {}
+        self._trie: Trie | None = None
         self._build(sentences)
 
     def _build(self, sentences: list[list[str]]) -> None:
@@ -50,6 +52,8 @@ class NgramModel:
 
         for left, rights in self.bigram.items():
             self.kn_bigram_types[left] = len(rights)
+
+        self._trie = Trie().build_from_vocab(self.vocab)
 
         self._kn_total = sum(self.kn_continuation.values()) or 1
 
@@ -117,7 +121,7 @@ class NgramModel:
             return self._cache[cache_key]
 
         if pre_norm:
-            candidates = [w for w in self.vocab if w.startswith(pre_norm)]
+            candidates = self._trie.starts_with(pre_norm) if self._trie else list(self.vocab)
         else:
             candidates = list(self.vocab)
 
