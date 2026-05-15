@@ -1,7 +1,9 @@
 import re
+from pathlib import Path
 
-CSV_PATH = "data/merged3.txt"
-CACHE_PATH = "data/.ngram_cache.pkl"
+BASE_DIR = Path(__file__).resolve().parent
+CSV_PATH = BASE_DIR / "data" / "MERGED_UZB_CHAGATAI.txt"
+CACHE_PATH = BASE_DIR / "data" / ".ngram_cache.pkl"
 
 PUNCT_RE = re.compile(r"[^\w\-ʿʾ]", re.UNICODE)
 

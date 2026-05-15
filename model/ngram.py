@@ -66,9 +66,26 @@ class NgramModel:
         elapsed = time.perf_counter() - t0
         print(
             f"[NgramModel] built in {elapsed:.2f}s | "
-            f"vocab={len(self.vocab):,} | sents — | "
+            f"vocab={len(self.vocab):,} | sents={len(sentences):,} | "
             f"2g={len(self.bigram):,} | 3g={len(self.trigram):,} | 4g={len(self.fourgram):,}"
         )
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self.ensure_runtime_indexes()
+
+    def ensure_runtime_indexes(self) -> None:
+        """Restore transient indexes when loading older pickle caches."""
+        if not hasattr(self, "_cache") or self._cache is None:
+            self._cache = {}
+        if not hasattr(self, "_kn_total"):
+            self._kn_total = sum(self.kn_continuation.values()) or 1
+        if not hasattr(self, "_trie") or self._trie is None:
+            self._trie = Trie().build_from_vocab(self.vocab)
+        if not hasattr(self, "_fuzzy") or self._fuzzy is None:
+            self._fuzzy = FuzzyMatcher().build_from_vocab(self.vocab)
+        if not hasattr(self, "_phonetic") or self._phonetic is None:
+            self._phonetic = ChagataiPhonetic().build_index(self.vocab)
 
     def _kn_unigram(self, word: str) -> float:
         """P_kn(word) — continuation probability (базовый уровень KN)."""
